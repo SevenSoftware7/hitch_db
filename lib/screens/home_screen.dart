@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+
+import 'package:hitch_db/screens/movie_preview_screen.dart';
+import 'package:hitch_db/widgets/swipeable.dart';
 import '../models/movie.dart';
 import '../services/movie_service.dart';
 import '../widgets/movie_card.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,19 +14,19 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+enum PageStatus { none, searching, settings }
+
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   final MovieService _movieService = MovieService();
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
-  
-  List<Movie> _popularMovies = [];
-  List<Movie> _topRatedMovies = [];
-  List<Movie> _upcomingMovies = [];
+
+  List<Movie> _movies = [];
   List<Movie> _searchResults = [];
-  
+
   bool _isLoading = false;
-  bool _isSearching = false;
+  PageStatus _state = PageStatus.none;
   String _errorMessage = '';
 
   @override
@@ -46,14 +50,10 @@ class _HomeScreenState extends State<HomeScreen>
     });
 
     try {
-      final popular = await _movieService.getPopularMovies();
       final topRated = await _movieService.getTopRatedMovies();
-      final upcoming = await _movieService.getUpcomingMovies();
 
       setState(() {
-        _popularMovies = popular;
-        _topRatedMovies = topRated;
-        _upcomingMovies = upcoming;
+        _movies = topRated;
         _isLoading = false;
       });
     } catch (e) {
@@ -67,14 +67,14 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _searchMovies(String query) async {
     if (query.isEmpty) {
       setState(() {
-        _isSearching = false;
+        _state = PageStatus.none;
         _searchResults = [];
       });
       return;
     }
 
     setState(() {
-      _isSearching = true;
+      _state = PageStatus.searching;
     });
 
     try {
@@ -93,47 +93,52 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: _isSearching
-            ? TextField(
-                controller: _searchController,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: 'Search movies...',
-                  hintStyle: TextStyle(color: Colors.white70),
-                  border: InputBorder.none,
-                ),
-                onChanged: _searchMovies,
-              )
-            : const Text('Hitch DB'),
-        actions: [
+        leading:
           IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            icon: Icon(_state == PageStatus.searching ? Icons.close : Icons.search),
             onPressed: () {
               setState(() {
-                if (_isSearching) {
-                  _isSearching = false;
+                if (_state == PageStatus.searching) {
+                  _state = PageStatus.none;
                   _searchController.clear();
                   _searchResults = [];
                 } else {
-                  _isSearching = true;
+                  _state = PageStatus.searching;
                 }
               });
             },
           ),
-        ],
-        bottom: _isSearching
-            ? null
-            : TabBar(
-                controller: _tabController,
-                tabs: const [
-                  Tab(text: 'Popular'),
-                  Tab(text: 'Top Rated'),
-                  Tab(text: 'Upcoming'),
-                ],
+        title: switch (_state) {
+          PageStatus.searching => TextField(
+              controller: _searchController,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: 'Search movies...',
+                hintStyle: TextStyle(color: Colors.white70),
+                border: InputBorder.none,
               ),
+              onChanged: _searchMovies,
+            ),
+          _ => const Text('Hitch DB'),
+        },
+        actions: [
+          IconButton(
+            icon: Icon(_state == PageStatus.settings ? Icons.close : Icons.settings),
+            onPressed: () {
+              setState(() {
+                if (_state == PageStatus.settings) {
+                  _state = PageStatus.none;
+                } else {
+                  _state = PageStatus.settings;
+                }
+              });
+            },
+          ),
+        ]
       ),
-      body: _isLoading
+      body: switch (_state) {
+        PageStatus.searching => _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
               ? Center(
@@ -164,16 +169,28 @@ class _HomeScreenState extends State<HomeScreen>
                     ],
                   ),
                 )
-              : _isSearching
-                  ? _buildSearchResults()
-                  : TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildMovieGrid(_popularMovies),
-                        _buildMovieGrid(_topRatedMovies),
-                        _buildMovieGrid(_upcomingMovies),
-                      ],
-                    ),
+              : _buildSearchResults(),
+        PageStatus.settings => Text("Test"),
+        _ => TabBarView(
+            controller: _tabController,
+            physics: NeverScrollableScrollPhysics(),
+            children: [
+              Container(child: _buildMovieGrid(_movies)),
+              Container(child: _buildSwipeWidget(_movies)),
+              Container(),
+            ],
+          )
+      },
+      bottomNavigationBar: _state == PageStatus.none
+        ? TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: 'Explore', icon: Icon(Icons.search)),
+              Tab(text: 'Swipe', icon: Icon(Icons.amp_stories_rounded)),
+              Tab(text: 'Profile', icon: Icon(Icons.person)),
+            ],
+          )
+        : null
     );
   }
 
@@ -210,5 +227,27 @@ class _HomeScreenState extends State<HomeScreen>
         },
       ),
     );
+  }
+
+
+  Widget _buildSwipeWidget(List<Movie> movies) {
+    return SwipeCards<MoviePreviewScreen>(
+      children:  movies.map(
+        (movie) => MapEntry(Key(movie.title), MoviePreviewScreen(movie: movie)))
+        .fold<Map<Key, MoviePreviewScreen>>({}, (prev, entry) => {...prev, entry.key: entry.value}),
+      useButtons: false,
+      onSwipeLeft: (item) => _onDislike(item.movie),
+      onSwipeRight: (item) => _onLike(item.movie),
+    );
+  }
+
+  void _onDislike(Movie movie) {
+    // Handle left swipe (dislike)
+    print('Disliked: ${movie.title}');
+  }
+
+  void _onLike(Movie movie) {
+    // Handle right swipe (like)
+    print('Liked: ${movie.title}');
   }
 }

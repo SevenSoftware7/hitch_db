@@ -14,7 +14,6 @@ class MovieDetailScreen extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App Bar with Backdrop
           SliverAppBar(
             expandedHeight: 300,
             pinned: true,
@@ -50,20 +49,7 @@ class MovieDetailScreen extends StatelessWidget {
                       : Container(
                           color: Colors.grey[300],
                           child: const Icon(Icons.movie, size: 80),
-                        ),
-                  // Gradient overlay
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.7),
-                        ],
-                      ),
-                    ),
-                  ),
+                        )
                 ],
               ),
             ),
@@ -154,38 +140,38 @@ class MovieDetailScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.amber,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.trending_up,
-                                    size: 16,
-                                    color: Colors.amber,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Popularity: ${movie.popularity.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            // Container(
+                            //   padding: const EdgeInsets.symmetric(
+                            //     horizontal: 12,
+                            //     vertical: 6,
+                            //   ),
+                            //   decoration: BoxDecoration(
+                            //     color: Colors.amber.withOpacity(0.2),
+                            //     borderRadius: BorderRadius.circular(20),
+                            //     border: Border.all(
+                            //       color: Colors.amber,
+                            //       width: 1,
+                            //     ),
+                            //   ),
+                            //   child: Row(
+                            //     mainAxisSize: MainAxisSize.min,
+                            //     children: [
+                            //       const Icon(
+                            //         Icons.trending_up,
+                            //         size: 16,
+                            //         color: Colors.amber,
+                            //       ),
+                            //       const SizedBox(width: 4),
+                            //       Text(
+                            //         'Popularity: ${movie.popularity.toStringAsFixed(0)}',
+                            //         style: const TextStyle(
+                            //           fontSize: 12,
+                            //           fontWeight: FontWeight.w500,
+                            //         ),
+                            //       ),
+                            //     ],
+                            //   ),
+                            // ),
                           ],
                         ),
                       ),
@@ -208,6 +194,8 @@ class MovieDetailScreen extends StatelessWidget {
                       fontSize: 16,
                       height: 1.5,
                     ),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 24),
                   // Additional info
@@ -215,12 +203,6 @@ class MovieDetailScreen extends StatelessWidget {
                     context,
                     'Original Language',
                     movie.originalLanguage.toUpperCase(),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildInfoRow(
-                    context,
-                    'Release Date',
-                    _formatReleaseDate(movie.releaseDate),
                   ),
                   const SizedBox(height: 8),
                   _buildInfoRow(
