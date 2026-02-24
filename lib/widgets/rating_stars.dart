@@ -19,6 +19,7 @@ class RatingStars extends StatelessWidget {
 
     return Row(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: List.generate(5, (index) {
         if (index < fullStars) {
           return Icon(

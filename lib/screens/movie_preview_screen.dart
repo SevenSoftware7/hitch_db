@@ -44,6 +44,19 @@ class MoviePreviewScreen extends StatelessWidget {
                         color: Colors.grey[300],
                         child: const Icon(Icons.movie, size: 80),
                       ),
+                  // Gradient overlay/shadow for better text visibility
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.7),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -102,90 +115,58 @@ class MoviePreviewScreen extends StatelessWidget {
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 32,
-            shadows: [
-              Shadow(
-                offset: Offset(0, 0),
-                blurRadius: 20.0,
-                color: Colors.black,
-              ),
-            ],
           ),
         ),
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Flex(
+          child: Wrap(
             direction: Axis.horizontal,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
+            alignment: WrapAlignment.center,
+            runSpacing: 0,
+            runAlignment: WrapAlignment.spaceBetween,
+            spacing: 12,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _formatReleaseDate(movie.releaseDate),
-                    // overflow: TextOverflow.clip,
-                    softWrap: true,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      shadows: [
-                        Shadow(
-                          offset: Offset(0, 0),
-                          blurRadius: 20.0,
-                          color: Colors.black,
-                        ),
-                      ],
-                    ),
-                  ),
-                  _buildInfoRow(
-                    context,
-                    'Rating',
-                    movie.adult ? '18+' : 'PG-13',
-                  ),
-                ]
+              Text(
+                _formatReleaseDate(movie.releaseDate),
+                softWrap: true,
+                style: TextStyle(
+                  fontSize: 16,
+                ),
+              ),
+              Text(
+                "Rating: ${movie.adult ? '18+' : 'PG-13'}",
+                style: TextStyle(
+                  fontSize: 16,
+                ),
               ),
               Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    movie.voteAverage.toStringAsFixed(1),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RatingStars(rating: movie.voteAverage),
+                      Text(
+                        movie.voteAverage.toStringAsFixed(1),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ]
                   ),
-                  RatingStars(rating: movie.voteAverage),
                   Text(
                     '${NumberFormat('#,###').format(movie.voteCount)} votes',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
                     ),
                   ),
-                ],
-              )
+                ]
+              ),
             ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoRow(BuildContext context, String label, String value) {
-    return Row(
-      children: [
-        Text(
-          '$label: ',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[700],
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
           ),
         ),
       ],
@@ -196,7 +177,7 @@ class MoviePreviewScreen extends StatelessWidget {
     if (date.isEmpty) return 'Unknown';
     try {
       final parsedDate = DateTime.parse(date);
-      return DateFormat('MMMM d, yyyy').format(parsedDate);
+      return DateFormat('d MMM yyyy').format(parsedDate);
     } catch (e) {
       return date;
     }

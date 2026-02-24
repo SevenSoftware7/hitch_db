@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:hitch_db/screens/movie_preview_screen.dart';
-import 'package:hitch_db/widgets/swipeable.dart';
+import 'package:hitch_db/widgets/swipe_cards.dart';
 import '../models/movie.dart';
 import '../services/movie_service.dart';
 import '../widgets/movie_card.dart';

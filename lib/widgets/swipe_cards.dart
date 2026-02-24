@@ -26,6 +26,16 @@ class _SwipeCardsState<T extends Widget> extends State<SwipeCards<T>> {
 
   @override
   Widget build(BuildContext context) {
+    if (children.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: Text(
+            "No more items",
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+    }
     return _buildSwipeCardScaffold();
     // if (!useButtons) return _buildSwipeCardScaffold();
     // return Column(
@@ -79,7 +89,7 @@ class _SwipeCardsState<T extends Widget> extends State<SwipeCards<T>> {
 
   Widget _buildSwipeCard(Key key, int index, Widget child) {
     return Transform.translate(
-      offset: Offset(0, - _calculateOffset(index)),
+      offset: Offset(0, -_calculateOffset(index)),
       child: Transform.scale(
         scale: _calculateScale(index),
         child: SizedBox(
@@ -95,15 +105,15 @@ class _SwipeCardsState<T extends Widget> extends State<SwipeCards<T>> {
               key: key,
               direction: DismissDirection.horizontal,
               onDismissed: (direction) {
-                setState(() {
-                  children.remove(key);
-                });
                 T item = children.values.toList()[currentIndex];
                 if (direction == DismissDirection.endToStart) {
                   widget.onSwipeLeft?.call(item);
                 } else if (direction == DismissDirection.startToEnd) {
                   widget.onSwipeRight?.call(item);
                 }
+                setState(() {
+                  children.remove(key);
+                });
               },
               background: Container(
                 color: Colors.green,
