@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:hitch_db/theme/app_semantic_colors.dart';
 import '../models/movie.dart';
 import '../screens/movie_detail_screen.dart';
 
@@ -11,19 +12,8 @@ class MovieCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MovieDetailScreen(movie: movie),
-          ),
-        );
-      },
+      onTap: () => MovieDetailScreen.pushNavigation(context, movie),
       child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -38,27 +28,27 @@ class MovieCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         width: double.infinity,
                         placeholder: (context, url) => Container(
-                          color: Colors.grey[300],
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           child: const Center(
                             child: CircularProgressIndicator(),
                           ),
                         ),
                         errorWidget: (context, url, error) => Container(
-                          color: Colors.grey[300],
-                          child: const Icon(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          child: Icon(
                             Icons.movie,
                             size: 50,
-                            color: Colors.grey,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       )
                     : Container(
-                        color: Colors.grey[300],
-                        child: const Center(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        child: Center(
                           child: Icon(
                             Icons.movie,
                             size: 50,
-                            color: Colors.grey,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -72,9 +62,8 @@ class MovieCard extends StatelessWidget {
                 children: [
                   Text(
                     movie.title,
-                    style: const TextStyle(
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -82,25 +71,23 @@ class MovieCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.star,
-                        color: Colors.amber,
+                        color: AppSemanticColors.of(context).rating,
                         size: 16,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         movie.voteAverage.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       const Spacer(),
                       Text(
                         movie.year,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -110,6 +97,37 @@ class MovieCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+extension MovieCardExtensions on List<Movie> {
+  List<Movie> filterByGenre(int genreId) {
+    return where((movie) => movie.genreIds.contains(genreId)).toList();
+  }
+
+  Widget buildMovieGrid({Function? onRefresh}) {
+    if (isEmpty) {
+      return const Center(
+        child: Text('No movies available'),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: onRefresh != null ? () async => onRefresh() : () async {},
+      child: GridView.builder(
+        padding: const EdgeInsets.all(8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.7,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        itemCount: length,
+        itemBuilder: (context, index) {
+          return MovieCard(movie: this[index]);
+        },
       ),
     );
   }

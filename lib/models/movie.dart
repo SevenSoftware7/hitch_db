@@ -78,3 +78,19 @@ class Movie {
     }
   }
 }
+
+extension MovieExtensions on List<Movie> {
+  List<Movie> applyFilters(List<Function(Movie, bool)> filters) {
+    return where((movie) {
+      for (var filter in filters) {
+        if (!filter(movie, true)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+  // List<Movie> filterByGenre(int genreId) {
+  //   return where((movie) => movie.genreIds.contains(genreId)).toList();
+  // }
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hitch_db/theme/app_semantic_colors.dart';
 
 class RatingStars extends StatelessWidget {
   final double rating;
@@ -12,6 +13,8 @@ class RatingStars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ratingColor = AppSemanticColors.of(context).rating;
+
     // Convert rating from 0-10 scale to 0-5 stars
     final stars = (rating / 2).clamp(0.0, 5.0);
     final fullStars = stars.floor();
@@ -24,19 +27,19 @@ class RatingStars extends StatelessWidget {
         if (index < fullStars) {
           return Icon(
             Icons.star,
-            color: Colors.amber,
+            color: ratingColor,
             size: size,
           );
         } else if (index == fullStars && hasHalfStar) {
           return Icon(
             Icons.star_half,
-            color: Colors.amber,
+            color: ratingColor,
             size: size,
           );
         } else {
           return Icon(
             Icons.star_border,
-            color: Colors.amber,
+            color: ratingColor,
             size: size,
           );
         }

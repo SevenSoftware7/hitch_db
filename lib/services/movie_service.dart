@@ -10,6 +10,14 @@ class MovieService {
   // For demo purposes, if no API key is provided, we'll use mock data
   static const bool _useMockData = _apiKey == 'YOUR_API_KEY_HERE';
 
+  MovieService() {
+    _cachedMovies = _getMockMovies();
+  }
+
+
+  late final List<Movie> _cachedMovies;
+  List<Movie> get cachedMovies => _cachedMovies;
+
   Future<List<Movie>> getPopularMovies({int page = 1}) async {
     if (_useMockData) {
       return _getMockMovies();

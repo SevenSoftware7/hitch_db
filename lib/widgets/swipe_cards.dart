@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:hitch_db/theme/app_semantic_colors.dart';
 
 class SwipeCards<T extends Widget> extends StatefulWidget {
   final Map<Key, T> children;
   final bool useButtons;
   final void Function(T item)? onSwipeLeft;
   final void Function(T item)? onSwipeRight;
+  final void Function(T item)? onSwipeUp;
 
-  const SwipeCards({super.key, required this.children, this.useButtons = false, this.onSwipeLeft, this.onSwipeRight});
+  const SwipeCards({super.key, required this.children, this.useButtons = false, this.onSwipeLeft, this.onSwipeRight, this.onSwipeUp});
 
   @override
   State<SwipeCards<T>> createState() => _SwipeCardsState<T>();
+}
+
+enum SwipeDirection {
+  left,
+  right,
+  up,
 }
 
 class _SwipeCardsState<T extends Widget> extends State<SwipeCards<T>> {
@@ -27,110 +35,168 @@ class _SwipeCardsState<T extends Widget> extends State<SwipeCards<T>> {
   @override
   Widget build(BuildContext context) {
     if (children.isEmpty) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: Text(
             "No more items",
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       );
     }
+
     return _buildSwipeCardScaffold();
-    // if (!useButtons) return _buildSwipeCardScaffold();
-    // return Column(
-    //   mainAxisAlignment: MainAxisAlignment.center,
-    //   children: [
-    //     _buildSwipeCardScaffold(),
-    //     // const SizedBox(height: 16),
-    //     // Row(
-    //     //   mainAxisAlignment: MainAxisAlignment.center,
-    //     //   children: [
-    //     //     ElevatedButton(
-    //     //       onPressed: () {
-    //     //         if (children.isEmpty) return;
-    //     //         setState(() {
-    //     //           children.remove(children.keys.elementAt(0));
-    //     //         });
-    //     //       },
-    //     //       child: const Icon(Icons.thumb_down),
-    //     //     ),
-    //     //     const SizedBox(width: 32),
-    //     //     ElevatedButton(
-    //     //       onPressed: () {
-    //     //         if (children.isEmpty) return;
-    //     //         setState(() {
-    //     //           children.remove(children.keys.elementAt(0));
-    //     //         });
-    //     //       },
-    //     //       child: const Icon(Icons.thumb_up),
-    //     //     ),
-    //     //   ],
-    //     // )
-    //   ],
-    // );
   }
 
   Scaffold _buildSwipeCardScaffold() {
     return Scaffold(
-    body: Center(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          for (var entry in children.entries)
-          Center(
-            child: _buildSwipeCard(entry.key, children.keys.toList().indexOf(entry.key), entry.value)
-          )
-        ].reversed.toList(),
+      body: Center(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            for (var entry in children.entries)
+            Center(
+              child: _buildSwipeCard(entry.key, children.keys.toList().indexOf(entry.key), entry.value)
+            )
+          ].reversed.toList(),
+        ),
       ),
-    ),
-  );
+      bottomSheet: useButtons
+        ? Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Ink(
+              decoration: ShapeDecoration(
+                shape: const CircleBorder(),
+                color: AppSemanticColors.of(context).dislike,
+              ),
+              child: IconButton(
+                onPressed: () => {
+                  _swipeUp(children.keys.toList()[currentIndex], SwipeDirection.left)
+                },
+                icon: const Icon(Icons.thumb_down),
+                color: AppSemanticColors.of(context).onDislike,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Ink(
+              decoration: ShapeDecoration(
+                shape: const CircleBorder(),
+                color: AppSemanticColors.of(context).alreadyWatched,
+              ),
+              child: IconButton(
+                onPressed: () => {
+                  _swipeUp(children.keys.toList()[currentIndex], SwipeDirection.up)
+                },
+                icon: const Icon(Icons.visibility),
+                color: AppSemanticColors.of(context).onAlreadyWatched,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Ink(
+              decoration: ShapeDecoration(
+                shape: const CircleBorder(),
+                color: AppSemanticColors.of(context).like,
+              ),
+              child: IconButton(
+                onPressed: () => {
+                  _swipeUp(children.keys.toList()[currentIndex], SwipeDirection.right)
+                },
+                icon: const Icon(Icons.thumb_up),
+                color: AppSemanticColors.of(context).onLike,
+              ),
+            ),
+          ],
+        )
+        : null,
+    );
   }
 
   Widget _buildSwipeCard(Key key, int index, Widget child) {
+    final semanticColors = AppSemanticColors.of(context);
+
     return Transform.translate(
       offset: Offset(0, -_calculateOffset(index)),
       child: Transform.scale(
         scale: _calculateScale(index),
         child: SizedBox(
-          height: 512,
-          width: 275,
+          height: 500,
+          width: 280,
           child: Card(
-            elevation: 8,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
             clipBehavior: Clip.antiAlias,
             child: Dismissible(
               key: key,
-              direction: DismissDirection.horizontal,
+              direction: DismissDirection.up,
               onDismissed: (direction) {
-                T item = children.values.toList()[currentIndex];
-                if (direction == DismissDirection.endToStart) {
-                  widget.onSwipeLeft?.call(item);
-                } else if (direction == DismissDirection.startToEnd) {
-                  widget.onSwipeRight?.call(item);
-                }
-                setState(() {
-                  children.remove(key);
-                });
+                _swipeUp(key, SwipeDirection.up);
               },
               background: Container(
-                color: Colors.green,
+                color: semanticColors.alreadyWatched,
                 alignment: Alignment.center,
-                child: Icon(Icons.thumb_up, color: Colors.white, size: 48),
+                child: Icon(
+                  Icons.visibility,
+                  color: semanticColors.onAlreadyWatched,
+                  size: 48,
+                ),
               ),
-              secondaryBackground: Container(
-                color: Colors.red,
-                alignment: Alignment.center,
-                child: Icon(Icons.thumb_down, color: Colors.white, size: 48),
+              child: Dismissible(
+                key: key,
+                direction: DismissDirection.horizontal,
+                onDismissed: (direction) {
+                  _swipeUp(
+                    key,
+                    direction == DismissDirection.startToEnd
+                      ? SwipeDirection.right
+                      : SwipeDirection.left
+                  );
+                },
+                background: Container(
+                  color: semanticColors.like,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.thumb_up,
+                    color: semanticColors.onLike,
+                    size: 48,
+                  ),
+                ),
+                secondaryBackground: Container(
+                  color: semanticColors.dislike,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.thumb_down,
+                    color: semanticColors.onDislike,
+                    size: 48,
+                  ),
+                ),
+                child: child,
               ),
-              child: child,
             ),
           )
         )
       )
     );
+  }
+
+  void _swipeUp(Key key, SwipeDirection direction) {
+    T item = children.values.toList()[currentIndex];
+
+    switch (direction) {
+      case SwipeDirection.up:
+        widget.onSwipeUp?.call(item);
+        break;
+      case SwipeDirection.left:
+        widget.onSwipeLeft?.call(item);
+        break;
+      case SwipeDirection.right:
+        widget.onSwipeRight?.call(item);
+        break;
+    }
+
+    setState(() {
+      children.remove(key);
+    });
   }
 
   double _calculateOffset(int index) =>

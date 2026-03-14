@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'package:hitch_db/screens/movie_preview_screen.dart';
+import 'package:hitch_db/screens/movie_preview.dart';
+import 'package:hitch_db/screens/search_screen.dart';
+import 'package:hitch_db/screens/settings_screen.dart';
+import 'package:hitch_db/widgets/movie_card.dart';
 import 'package:hitch_db/widgets/swipe_cards.dart';
-import '../models/movie.dart';
-import '../services/movie_service.dart';
-import '../widgets/movie_card.dart';
+import 'package:hitch_db/models/movie.dart';
+import 'package:hitch_db/services/movie_service.dart';
+import 'package:provider/provider.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -14,79 +17,21 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-enum PageStatus { none, searching, settings }
-
 class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
-  final MovieService _movieService = MovieService();
+  with SingleTickerProviderStateMixin
+{
   late TabController _tabController;
-  final TextEditingController _searchController = TextEditingController();
-
-  List<Movie> _movies = [];
-  List<Movie> _searchResults = [];
-
-  bool _isLoading = false;
-  PageStatus _state = PageStatus.none;
-  String _errorMessage = '';
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadMovies();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadMovies() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
-    try {
-      final topRated = await _movieService.getTopRatedMovies();
-
-      setState(() {
-        _movies = topRated;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _searchMovies(String query) async {
-    if (query.isEmpty) {
-      setState(() {
-        _state = PageStatus.none;
-        _searchResults = [];
-      });
-      return;
-    }
-
-    setState(() {
-      _state = PageStatus.searching;
-    });
-
-    try {
-      final results = await _movieService.searchMovies(query);
-      setState(() {
-        _searchResults = results;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-      });
-    }
   }
 
   @override
@@ -95,159 +40,82 @@ class _HomeScreenState extends State<HomeScreen>
       appBar: AppBar(
         leading:
           IconButton(
-            icon: Icon(_state == PageStatus.searching ? Icons.close : Icons.search),
+            icon: const Icon(Icons.search),
             onPressed: () {
-              setState(() {
-                if (_state == PageStatus.searching) {
-                  _state = PageStatus.none;
-                  _searchController.clear();
-                  _searchResults = [];
-                } else {
-                  _state = PageStatus.searching;
-                }
-              });
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SearchScreen(),
+                ),
+              );
             },
           ),
-        title: switch (_state) {
-          PageStatus.searching => TextField(
-              controller: _searchController,
-              autofocus: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: 'Search movies...',
-                hintStyle: TextStyle(color: Colors.white70),
-                border: InputBorder.none,
-              ),
-              onChanged: _searchMovies,
-            ),
-          _ => const Text('Hitch DB'),
-        },
+        title: const Text('Hitch DB'),
         actions: [
           IconButton(
-            icon: Icon(_state == PageStatus.settings ? Icons.close : Icons.settings),
+            icon: const Icon(Icons.settings),
             onPressed: () {
-              setState(() {
-                if (_state == PageStatus.settings) {
-                  _state = PageStatus.none;
-                } else {
-                  _state = PageStatus.settings;
-                }
-              });
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
             },
-          ),
-        ]
+          )
+        ],
       ),
-      body: switch (_state) {
-        PageStatus.searching => _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage.isNotEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          size: 60, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Error loading movies',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          _errorMessage,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadMovies,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : _buildSearchResults(),
-        PageStatus.settings => Text("Test"),
-        _ => TabBarView(
-            controller: _tabController,
-            physics: NeverScrollableScrollPhysics(),
-            children: [
-              Container(child: _buildMovieGrid(_movies)),
-              Container(child: _buildSwipeWidget(_movies)),
-              Container(),
-            ],
-          )
-      },
-      bottomNavigationBar: _state == PageStatus.none
-        ? TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: 'Explore', icon: Icon(Icons.search)),
-              Tab(text: 'Swipe', icon: Icon(Icons.amp_stories_rounded)),
-              Tab(text: 'Profile', icon: Icon(Icons.person)),
-            ],
-          )
-        : null
-    );
-  }
-
-  Widget _buildSearchResults() {
-    if (_searchResults.isEmpty && _searchController.text.isNotEmpty) {
-      return const Center(
-        child: Text('No movies found'),
-      );
-    }
-
-    return _buildMovieGrid(_searchResults);
-  }
-
-  Widget _buildMovieGrid(List<Movie> movies) {
-    if (movies.isEmpty) {
-      return const Center(
-        child: Text('No movies available'),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadMovies,
-      child: GridView.builder(
-        padding: const EdgeInsets.all(8),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.7,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
+      body: TabBarView(
+          controller: _tabController,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            context.watch<MovieService>().cachedMovies.buildMovieGrid(
+              onRefresh: context.watch<MovieService>().getPopularMovies,
+            ),
+            _buildSwipeWidget(context.watch<MovieService>().cachedMovies),
+            Container(),
+          ],
         ),
-        itemCount: movies.length,
-        itemBuilder: (context, index) {
-          return MovieCard(movie: movies[index]);
-        },
-      ),
+      bottomNavigationBar: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Explore', icon: Icon(Icons.search)),
+            Tab(text: 'Swipe', icon: Icon(Icons.amp_stories_rounded)),
+            Tab(text: 'Profile', icon: Icon(Icons.person)),
+          ],
+        )
     );
   }
 
 
   Widget _buildSwipeWidget(List<Movie> movies) {
-    return SwipeCards<MoviePreviewScreen>(
-      children:  movies.map(
-        (movie) => MapEntry(Key(movie.title), MoviePreviewScreen(movie: movie)))
-        .fold<Map<Key, MoviePreviewScreen>>({}, (prev, entry) => {...prev, entry.key: entry.value}),
+    return SwipeCards<MoviePreview>(
+      children:  _buildMoviePreviewDict(movies),
       useButtons: false,
       onSwipeLeft: (item) => _onDislike(item.movie),
       onSwipeRight: (item) => _onLike(item.movie),
+      onSwipeUp: (item) => _onAlreadyWatched(item.movie),
     );
   }
 
+  Map<Key, MoviePreview> _buildMoviePreviewDict(List<Movie> movies) =>
+    movies.map(
+      (movie) => MapEntry(Key(movie.title), MoviePreview(movie: movie)))
+      .fold<Map<Key, MoviePreview>>({}, (prev, entry) => {...prev, entry.key: entry.value});
+
+
   void _onDislike(Movie movie) {
     // Handle left swipe (dislike)
-    print('Disliked: ${movie.title}');
+    print('Not interested: ${movie.title}');
   }
 
   void _onLike(Movie movie) {
     // Handle right swipe (like)
-    print('Liked: ${movie.title}');
+    print('Watch later: ${movie.title}');
+  }
+
+  void _onAlreadyWatched(Movie movie) {
+    // Handle already watched swipe
+    print('Already watched: ${movie.title}');
   }
 }

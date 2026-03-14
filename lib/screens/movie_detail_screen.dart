@@ -7,10 +7,21 @@ import '../widgets/rating_stars.dart';
 class MovieDetailScreen extends StatelessWidget {
   final Movie movie;
 
+  static void pushNavigation(BuildContext context, Movie movie) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MovieDetailScreen(movie: movie),
+      ),
+    );
+  }
+
   const MovieDetailScreen({super.key, required this.movie});
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -18,19 +29,6 @@ class MovieDetailScreen extends StatelessWidget {
             expandedHeight: 300,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                movie.title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(
-                      offset: Offset(0, 1),
-                      blurRadius: 3.0,
-                      color: Colors.black,
-                    ),
-                  ],
-                ),
-              ),
               background: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -39,15 +37,15 @@ class MovieDetailScreen extends StatelessWidget {
                           imageUrl: movie.backdropUrl,
                           fit: BoxFit.cover,
                           placeholder: (context, url) => Container(
-                            color: Colors.grey[300],
+                            color: colorScheme.surfaceContainerHighest,
                           ),
                           errorWidget: (context, url, error) => Container(
-                            color: Colors.grey[300],
+                            color: colorScheme.surfaceContainerHighest,
                             child: const Icon(Icons.movie, size: 80),
                           ),
                         )
                       : Container(
-                          color: Colors.grey[300],
+                          color: colorScheme.surfaceContainerHighest,
                           child: const Icon(Icons.movie, size: 80),
                         )
                 ],
@@ -77,20 +75,20 @@ class MovieDetailScreen extends StatelessWidget {
                                 placeholder: (context, url) => Container(
                                   width: 120,
                                   height: 180,
-                                  color: Colors.grey[300],
+                                  color: colorScheme.surfaceContainerHighest,
                                   child: const CircularProgressIndicator(),
                                 ),
                                 errorWidget: (context, url, error) => Container(
                                   width: 120,
                                   height: 180,
-                                  color: Colors.grey[300],
+                                  color: colorScheme.surfaceContainerHighest,
                                   child: const Icon(Icons.movie, size: 40),
                                 ),
                               )
                             : Container(
                                 width: 120,
                                 height: 180,
-                                color: Colors.grey[300],
+                                color: colorScheme.surfaceContainerHighest,
                                 child: const Icon(Icons.movie, size: 40),
                               ),
                       ),
@@ -112,9 +110,8 @@ class MovieDetailScreen extends StatelessWidget {
                             const SizedBox(height: 8),
                             Text(
                               _formatReleaseDate(movie.releaseDate),
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[600],
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -124,8 +121,7 @@ class MovieDetailScreen extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Text(
                                   movie.voteAverage.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                    fontSize: 18,
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -134,9 +130,8 @@ class MovieDetailScreen extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               '${NumberFormat('#,###').format(movie.voteCount)} votes',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -190,8 +185,7 @@ class MovieDetailScreen extends StatelessWidget {
                     movie.overview.isNotEmpty
                         ? movie.overview
                         : 'No overview available.',
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       height: 1.5,
                     ),
                     maxLines: 4,
@@ -220,21 +214,20 @@ class MovieDetailScreen extends StatelessWidget {
   }
 
   Widget _buildInfoRow(BuildContext context, String label, String value) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Row(
       children: [
         Text(
           '$label: ',
-          style: TextStyle(
-            fontSize: 16,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             fontWeight: FontWeight.w600,
-            color: Colors.grey[700],
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 16,
-          ),
+          style: Theme.of(context).textTheme.bodyLarge,
         ),
       ],
     );
