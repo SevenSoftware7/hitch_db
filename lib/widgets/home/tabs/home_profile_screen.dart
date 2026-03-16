@@ -1,5 +1,7 @@
 ﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:hitch_db/widgets/auth/change_password_dialog.dart';
+import 'package:hitch_db/widgets/auth/delete_account_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -7,7 +9,7 @@ import 'package:hitch_db/models/movie.dart';
 import 'package:hitch_db/models/profile_models.dart';
 import 'package:hitch_db/services/auth_session.dart';
 import 'package:hitch_db/services/movie_service.dart';
-import 'movie_detail_screen.dart';
+import '../../movie/movie_detail_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -80,66 +82,69 @@ class ProfileScreen extends StatelessWidget {
             actionLabel: movieService.favorites.isEmpty ? null : 'Clear hints',
             onAction: null,
             child: movieService.favorites.isEmpty
-                ? const _EmptyState(
-                    message: 'Swipe right on a movie to save it here.',
+              ? const _EmptyState(
+                  message: 'Swipe right on a movie to save it here.',
+                )
+              : Column(
+                children: movieService.favorites
+                  .map(
+                    (entry) => _PosterListTile(
+                      title: entry.movie.title,
+                      subtitle: _formatDate(
+                        entry.addedAt,
+                        fallback: 'Saved recently',
+                      ),
+                      posterUrl: entry.movie.posterUrl,
+                      onTap: () => MovieDetailScreen.pushNavigation(
+                        context,
+                        entry.movie,
+                      ),
+                      trailing: IconButton(
+                        onPressed: () => _removeFavorite(
+                          context,
+                          movieService,
+                          entry.movie,
+                        ),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ),
                   )
-                : Column(
-                    children: movieService.favorites
-                        .map(
-                          (entry) => _PosterListTile(
-                            title: entry.movie.title,
-                            subtitle: _formatDate(
-                              entry.addedAt,
-                              fallback: 'Saved recently',
-                            ),
-                            posterUrl: entry.movie.posterUrl,
-                            onTap: () => MovieDetailScreen.pushNavigation(
-                              context,
-                              entry.movie,
-                            ),
-                            trailing: IconButton(
-                              onPressed: () =>
-                                _removeFavorite(context, movieService, entry.movie),
-                              icon: const Icon(Icons.delete_outline),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
+                  .toList(),
+                ),
           ),
           const SizedBox(height: 16),
           _ProfileSection(
             title: 'Watch later',
             child: movieService.watchLaterMovies.isEmpty
-                ? const _EmptyState(
-                    message: 'Swipe right on a movie to add it to watch later.',
-                  )
-                : Column(
-                    children: movieService.watchLaterMovies
-                        .map(
-                          (entry) => _PosterListTile(
-                            title: entry.movie.title,
-                            subtitle: _formatDate(
-                              entry.addedAt,
-                              fallback: 'Saved recently',
-                            ),
-                            posterUrl: entry.movie.posterUrl,
-                            onTap: () => MovieDetailScreen.pushNavigation(
-                              context,
-                              entry.movie,
-                            ),
-                            trailing: IconButton(
-                              onPressed: () => _removeWatchLater(
-                                context,
-                                movieService,
-                                entry,
-                              ),
-                              icon: const Icon(Icons.delete_outline),
-                            ),
+              ? const _EmptyState(
+                  message: 'Swipe right on a movie to add it to watch later.',
+                )
+              : Column(
+                  children: movieService.watchLaterMovies
+                    .map(
+                      (entry) => _PosterListTile(
+                        title: entry.movie.title,
+                        subtitle: _formatDate(
+                          entry.addedAt,
+                          fallback: 'Saved recently',
+                        ),
+                        posterUrl: entry.movie.posterUrl,
+                        onTap: () => MovieDetailScreen.pushNavigation(
+                          context,
+                          entry.movie,
+                        ),
+                        trailing: IconButton(
+                          onPressed: () => _removeWatchLater(
+                            context,
+                            movieService,
+                            entry,
                           ),
-                        )
-                        .toList(),
-                  ),
+                          icon: const Icon(Icons.delete_outline),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                ),
           ),
           const SizedBox(height: 16),
           _ProfileSection(
@@ -150,31 +155,34 @@ class ProfileScreen extends StatelessWidget {
                   )
                 : Column(
                     children: movieService.watchedMovies
-                        .map(
-                          (entry) => _PosterListTile(
-                            title: entry.movie.title,
-                            subtitle: [
-                              entry.liked ? 'Liked' : 'Watched',
-                              if (entry.rating != null)
-                                'Rating ${entry.rating}/10',
-                              _formatDate(
-                                entry.watchedAt,
-                                fallback: 'Recently watched',
-                              ),
-                            ].join(' • '),
-                            posterUrl: entry.movie.posterUrl,
-                            onTap: () => MovieDetailScreen.pushNavigation(
+                      .map(
+                        (entry) => _PosterListTile(
+                          title: entry.movie.title,
+                          subtitle: [
+                            entry.liked ? 'Liked' : 'Watched',
+                            if (entry.rating != null)
+                              'Rating ${entry.rating}/10',
+                            _formatDate(
+                              entry.watchedAt,
+                              fallback: 'Recently watched',
+                            ),
+                          ].join(' • '),
+                          posterUrl: entry.movie.posterUrl,
+                          onTap: () => MovieDetailScreen.pushNavigation(
+                            context,
+                            entry.movie,
+                          ),
+                          trailing: IconButton(
+                            onPressed: () => _removeWatched(
                               context,
+                              movieService,
                               entry.movie,
                             ),
-                            trailing: IconButton(
-                              onPressed: () =>
-                                _removeWatched(context, movieService, entry.movie),
-                              icon: const Icon(Icons.delete_outline),
-                            ),
+                            icon: const Icon(Icons.delete_outline),
                           ),
-                        )
-                        .toList(),
+                        ),
+                      )
+                      .toList(),
                   ),
           ),
           const SizedBox(height: 16),
@@ -183,30 +191,31 @@ class ProfileScreen extends StatelessWidget {
             actionLabel: 'New list',
             onAction: () => _showCreateListDialog(context, movieService),
             child: movieService.movieLists.isEmpty
-                ? const _EmptyState(
-                    message: 'Create a list to start organizing movies.',
+              ? const _EmptyState(
+                  message: 'Create a list to start organizing movies.',
+                )
+              : Column(
+                children: movieService.movieLists
+                  .map(
+                    (list) => _MovieListCard(
+                      list: list,
+                      onDelete: () =>
+                          _deleteMovieList(context, movieService, list),
+                      onRemoveMovie: (movie) => _removeMovieFromList(
+                        context,
+                        movieService,
+                        list.id,
+                        movie,
+                      ),
+                      onOpenMovie: (movie) =>
+                        MovieDetailScreen.pushNavigation(
+                          context,
+                          movie,
+                        ),
+                    ),
                   )
-                : Column(
-                    children: movieService.movieLists
-                        .map(
-                          (list) => _MovieListCard(
-                            list: list,
-                            onDelete: () =>
-                                _deleteMovieList(context, movieService, list),
-                            onRemoveMovie: (movie) => _removeMovieFromList(
-                              context,
-                              movieService,
-                              list.id,
-                              movie,
-                            ),
-                            onOpenMovie: (movie) => MovieDetailScreen.pushNavigation(
-                              context,
-                              movie,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
+                  .toList(),
+                ),
           ),
           const SizedBox(height: 16),
           FilledButton.tonalIcon(
@@ -215,6 +224,47 @@ class ProfileScreen extends StatelessWidget {
             },
             icon: const Icon(Icons.logout_rounded),
             label: const Text('Log out'),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: () => showDialog<bool>(
+              context: context,
+              builder: (_) => const ChangePasswordDialog(),
+            ),
+            icon: const Icon(Icons.lock_outline),
+            label: const Text('Change password'),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.tonalIcon(
+            onPressed: () async {
+              final password = await showDialog<String>(
+                context: context,
+                builder: (_) => const DeleteAccountDialog(),
+              );
+
+              if (password == null || password.isEmpty || !context.mounted) {
+                return;
+              }
+
+              final authSession = context.read<AuthSession>();
+              final deleted = await authSession.deleteAccount(
+                password: password,
+              );
+              if (!deleted && context.mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(authSession.errorMessage ?? 'Failed to delete account.')));
+              }
+            },
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Delete account'),
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.all(
+                Theme.of(context).colorScheme.errorContainer,
+              ),
+              foregroundColor: WidgetStateProperty.all(
+                Theme.of(context).colorScheme.error,
+              ),
+            ),
           ),
         ],
       ),

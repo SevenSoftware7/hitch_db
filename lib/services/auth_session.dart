@@ -64,8 +64,7 @@ class AuthSession extends ChangeNotifier {
         notifyListeners();
         return false;
       }
-    }
-    catch (e) {
+    } catch (e) {
       _status = AuthStatus.unauthenticated;
       _errorMessage = 'An error occurred during registration: $e';
       notifyListeners();
@@ -84,15 +83,14 @@ class AuthSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> deleteAccount() async {
+  Future<bool> deleteAccount({required String password}) async {
     _errorMessage = null;
     notifyListeners();
 
     bool result;
     try {
-      result = await _loginService.deleteAccount();
-    }
-    catch (e) {
+      result = await _loginService.deleteAccount(password: password);
+    } catch (e) {
       _errorMessage = 'An error occurred while deleting your account: $e';
       notifyListeners();
       return false;

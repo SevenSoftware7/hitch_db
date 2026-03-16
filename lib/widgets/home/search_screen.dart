@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hitch_db/models/movie.dart';
 import 'package:hitch_db/services/movie_service.dart';
-import 'package:hitch_db/widgets/movie_card.dart';
+import 'package:hitch_db/widgets/movie/movie_card.dart';
 import 'package:provider/provider.dart';
 
 class SearchScreen extends StatefulWidget {

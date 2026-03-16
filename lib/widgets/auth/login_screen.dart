@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:hitch_db/screens/register_screen.dart';
+import 'package:hitch_db/widgets/auth/register_screen.dart';
 import 'package:hitch_db/services/auth_session.dart';
 
 class LoginScreen extends StatefulWidget {

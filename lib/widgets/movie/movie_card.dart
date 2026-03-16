@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hitch_db/theme/app_semantic_colors.dart';
-import '../models/movie.dart';
-import '../screens/movie_detail_screen.dart';
+import '../../models/movie.dart';
+import 'movie_detail_screen.dart';
 
 class MovieCard extends StatelessWidget {
   final Movie movie;

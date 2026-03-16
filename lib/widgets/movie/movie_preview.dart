@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:hitch_db/screens/movie_detail_screen.dart';
-import 'package:hitch_db/widgets/rating_stars.dart';
+import 'package:hitch_db/widgets/movie/movie_detail_screen.dart';
+import 'package:hitch_db/shared/rating_stars.dart';
 import 'package:intl/intl.dart';
-import '../models/movie.dart';
+import '../../models/movie.dart';
 
 class MoviePreview extends StatelessWidget {
   final Movie movie;

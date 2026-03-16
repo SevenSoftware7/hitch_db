@@ -5,8 +5,8 @@ import 'package:provider/provider.dart';
 
 import 'package:hitch_db/services/movie_service.dart';
 
-import '../models/movie.dart';
-import '../widgets/rating_stars.dart';
+import '../../models/movie.dart';
+import '../../shared/rating_stars.dart';
 
 class MovieDetailScreen extends StatelessWidget {
   final Movie movie;

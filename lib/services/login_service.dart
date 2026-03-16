@@ -50,10 +50,14 @@ class LoginService {
     );
   }
 
-  Future<bool> deleteAccount() async {
+  Future<bool> deleteAccount({required String password}) async {
     final token = await getAccessToken();
     if (token == null || token.isEmpty) {
       throw Exception('No access token found for account deletion.');
+    }
+
+    if (password.trim().isEmpty) {
+      throw Exception('Password is required for account deletion.');
     }
 
     final uri = Uri.parse('$_baseUrl/api/Auth/delete-account');
@@ -65,6 +69,7 @@ class LoginService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
+        body: jsonEncode({'password': password}),
       );
     } catch (e) {
       throw Exception('Account deletion request to $uri failed: $e');

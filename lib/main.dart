@@ -6,8 +6,8 @@ import 'package:hitch_db/services/auth_session.dart';
 import 'package:hitch_db/services/login_service.dart';
 import 'package:hitch_db/services/movie_service.dart';
 import 'package:hitch_db/theme/app_semantic_colors.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
+import 'widgets/home/home_screen.dart';
+import 'widgets/auth/login_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

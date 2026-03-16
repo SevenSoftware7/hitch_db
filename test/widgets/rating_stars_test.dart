@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hitch_db/theme/app_semantic_colors.dart';
-import 'package:hitch_db/widgets/rating_stars.dart';
+import 'package:hitch_db/shared/rating_stars.dart';
 
 void main() {
   ThemeData _theme() {
