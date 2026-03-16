@@ -1,243 +1,395 @@
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
+import 'package:hitch_db/app_config.dart';
+import 'package:hitch_db/models/profile_models.dart';
+import 'package:hitch_db/services/login_service.dart';
+
 import '../models/movie.dart';
 
-class MovieService {
-  // TMDB API key - Replace with your own API key from https://www.themoviedb.org/settings/api
-  static const String _apiKey = 'YOUR_API_KEY_HERE';
-  static const String _baseUrl = 'https://api.themoviedb.org/3';
+class MovieService extends ChangeNotifier {
+  MovieService(this._loginService, {String? baseUrl, http.Client? client})
+    : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+      _client = client ?? http.Client();
 
-  // For demo purposes, if no API key is provided, we'll use mock data
-  static const bool _useMockData = _apiKey == 'YOUR_API_KEY_HERE';
+  LoginService _loginService;
+  final String _baseUrl;
+  final http.Client _client;
 
-  MovieService() {
-    _cachedMovies = _getMockMovies();
-  }
+  List<Movie> _cachedMovies = [];
+  UserProfile? _profile;
+  List<FavoriteMovieEntry> _favorites = const [];
+  List<WatchLaterMovieEntry> _watchLaterMovies = const [];
+  List<WatchedMovieEntry> _watchedMovies = const [];
+  List<UserMovieList> _movieLists = const [];
+  bool _isInitializing = false;
+  bool _isLoadingMovies = false;
+  bool _isLoadingProfile = false;
+  String? _errorMessage;
+  bool _hasLoadedOnce = false;
 
-
-  late final List<Movie> _cachedMovies;
   List<Movie> get cachedMovies => _cachedMovies;
 
-  Future<List<Movie>> getPopularMovies({int page = 1}) async {
-    if (_useMockData) {
-      return _getMockMovies();
+  List<Movie> get swiperMovies {
+    final excludedIds = {
+      ..._watchedMovies.map((e) => e.movie.id),
+      ..._watchLaterMovies.map((e) => e.movie.id),
+    };
+    return _cachedMovies.where((m) => !excludedIds.contains(m.id)).toList();
+  }
+
+  UserProfile? get profile => _profile;
+  List<FavoriteMovieEntry> get favorites => _favorites;
+  List<WatchLaterMovieEntry> get watchLaterMovies {
+    final excludedIds = {
+      ..._watchedMovies.map((e) => e.movie.id),
+    };
+    return _watchLaterMovies.where((m) => !excludedIds.contains(m.movie.id)).toList();
+  }
+  List<WatchedMovieEntry> get watchedMovies => _watchedMovies;
+  List<UserMovieList> get movieLists => _movieLists;
+  bool get isInitializing => _isInitializing;
+  bool get isLoadingMovies => _isLoadingMovies;
+  bool get isLoadingProfile => _isLoadingProfile;
+  String? get errorMessage => _errorMessage;
+
+  void updateLoginService(LoginService loginService) {
+    _loginService = loginService;
+  }
+
+  Future<void> initialize({bool forceRefresh = false}) async {
+    if (_isInitializing) {
+      return;
+    }
+    if (_hasLoadedOnce && !forceRefresh) {
+      return;
     }
 
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/movie/popular?api_key=$_apiKey&page=$page'),
-      );
+    _isInitializing = true;
+    _errorMessage = null;
+    notifyListeners();
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final results = data['results'] as List;
-        return results.map((movie) => Movie.fromJson(movie)).toList();
-      } else {
-        throw Exception('Failed to load movies');
-      }
+    try {
+      await Future.wait([getPopularMovies(), refreshProfileData()]);
+      _hasLoadedOnce = true;
     } catch (e) {
-      throw Exception('Error fetching movies: $e');
+      _errorMessage = e.toString();
+      rethrow;
+    } finally {
+      _isInitializing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<List<Movie>> getPopularMovies({int page = 1}) async {
+    _isLoadingMovies = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final payload = await _getJson('/api/Movies/popular?page=$page');
+      final movies = _parseMovieResults(payload);
+      _cachedMovies = movies;
+      return movies;
+    } catch (e) {
+      _errorMessage = 'Unable to load movies: $e';
+      rethrow;
+    } finally {
+      _isLoadingMovies = false;
+      notifyListeners();
     }
   }
 
   Future<List<Movie>> searchMovies(String query, {int page = 1}) async {
-    if (_useMockData) {
-      return _getMockMovies()
-          .where((movie) =>
-              movie.title.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    }
-
     if (query.isEmpty) return [];
 
-    try {
-      final response = await http.get(
-        Uri.parse(
-          '$_baseUrl/search/movie?api_key=$_apiKey&query=$query&page=$page',
-        ),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final results = data['results'] as List;
-        return results.map((movie) => Movie.fromJson(movie)).toList();
-      } else {
-        throw Exception('Failed to search movies');
-      }
-    } catch (e) {
-      throw Exception('Error searching movies: $e');
-    }
+    final encodedQuery = Uri.encodeQueryComponent(query);
+    final payload = await _getJson(
+      '/api/Movies/search?query=$encodedQuery&page=$page',
+    );
+    return _parseMovieResults(payload);
   }
 
   Future<List<Movie>> getTopRatedMovies({int page = 1}) async {
-    if (_useMockData) {
-      final movies = _getMockMovies();
-      movies.sort((a, b) => b.voteAverage.compareTo(a.voteAverage));
-      return movies;
-    }
+    final payload = await _getJson('/api/Movies/top-rated?page=$page');
+    return _parseMovieResults(payload);
+  }
 
+  Future<Movie?> getMovieById(int tmdbId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/movie/top_rated?api_key=$_apiKey&page=$page'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final results = data['results'] as List;
-        return results.map((movie) => Movie.fromJson(movie)).toList();
-      } else {
-        throw Exception('Failed to load top rated movies');
-      }
+      final payload = await _getJson('/api/Movies/$tmdbId');
+      final movie = Movie.fromJson(payload as Map<String, dynamic>);
+      _cachedMovies.add(movie);
+      return movie;
     } catch (e) {
-      throw Exception('Error fetching top rated movies: $e');
+      _errorMessage = 'Unable to load movie details: $e';
+      notifyListeners();
+      return null;
     }
   }
 
-  Future<List<Movie>> getUpcomingMovies({int page = 1}) async {
-    if (_useMockData) {
-      return _getMockMovies();
-    }
+  Future<void> refreshProfileData() async {
+    _isLoadingProfile = true;
+    _errorMessage = null;
+    notifyListeners();
 
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/movie/upcoming?api_key=$_apiKey&page=$page'),
-      );
+      final results = await Future.wait<dynamic>([
+        _getJson('/api/Users/me'),
+        _getJson('/api/FavoriteMovies'),
+        _getJson('/api/WatchLaterMovies'),
+        _getJson('/api/WatchedMovies'),
+        _getJson('/api/MovieLists'),
+      ]);
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final results = data['results'] as List;
-        return results.map((movie) => Movie.fromJson(movie)).toList();
-      } else {
-        throw Exception('Failed to load upcoming movies');
-      }
+      _profile = UserProfile.fromJson(results[0] as Map<String, dynamic>);
+      _favorites = _parseJsonList(
+        results[1],
+      ).map(FavoriteMovieEntry.fromJson).toList();
+      _watchLaterMovies = _parseJsonList(
+        results[2],
+      ).map(WatchLaterMovieEntry.fromJson).toList();
+      _watchedMovies = _parseJsonList(
+        results[3],
+      ).map(WatchedMovieEntry.fromJson).toList();
+      _movieLists = _parseJsonList(
+        results[4],
+      ).map(UserMovieList.fromJson).toList();
     } catch (e) {
-      throw Exception('Error fetching upcoming movies: $e');
+      _errorMessage = 'Unable to load profile data: $e';
+      rethrow;
+    } finally {
+      _isLoadingProfile = false;
+      notifyListeners();
     }
   }
 
-  // Mock data for demo purposes
-  List<Movie> _getMockMovies() {
-    return [
-      Movie(
-        id: 1,
-        title: 'The Shawshank Redemption',
-        overview:
-            'Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.',
-        posterPath: '/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg',
-        backdropPath: '/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg',
-        voteAverage: 8.7,
-        voteCount: 24500,
-        releaseDate: '1994-09-23',
-        genreIds: [18, 80],
-        popularity: 150.5,
-        originalLanguage: 'en',
-        adult: false,
-      ),
-      Movie(
-        id: 2,
-        title: 'The Godfather',
-        overview:
-            'The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son.',
-        posterPath: '/3bhkrj58Vtu7enYsRolD1fZdja1.jpg',
-        backdropPath: '/tmU7GeKVybMWFButWEGl2M4GeiP.jpg',
-        voteAverage: 8.7,
-        voteCount: 18400,
-        releaseDate: '1972-03-14',
-        genreIds: [18, 80],
-        popularity: 145.3,
-        originalLanguage: 'en',
-        adult: false,
-      ),
-      Movie(
-        id: 3,
-        title: 'The Dark Knight',
-        overview:
-            'When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests.',
-        posterPath: '/qJ2tW6WMUDux911r6m7haRef0WH.jpg',
-        backdropPath: '/hkBaDkMWbLaf8B1lsWsKX7Ew3Xq.jpg',
-        voteAverage: 8.5,
-        voteCount: 31200,
-        releaseDate: '2008-07-16',
-        genreIds: [18, 28, 80, 53],
-        popularity: 180.7,
-        originalLanguage: 'en',
-        adult: false,
-      ),
-      Movie(
-        id: 4,
-        title: 'Pulp Fiction',
-        overview:
-            'The lives of two mob hitmen, a boxer, a gangster and his wife intertwine in four tales of violence and redemption.',
-        posterPath: '/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg',
-        backdropPath: '/suaEOtk1N1sgg2MTM7oZd2cfVp3.jpg',
-        voteAverage: 8.5,
-        voteCount: 26700,
-        releaseDate: '1994-09-10',
-        genreIds: [53, 80],
-        popularity: 155.2,
-        originalLanguage: 'en',
-        adult: false,
-      ),
-      Movie(
-        id: 5,
-        title: 'Inception',
-        overview:
-            'A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea.',
-        posterPath: '/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg',
-        backdropPath: '/s3TBrRGB1iav7gFOCNx3H31MoES.jpg',
-        voteAverage: 8.4,
-        voteCount: 33400,
-        releaseDate: '2010-07-15',
-        genreIds: [28, 878, 12],
-        popularity: 210.5,
-        originalLanguage: 'en',
-        adult: false,
-      ),
-      Movie(
-        id: 6,
-        title: 'Forrest Gump',
-        overview:
-            'The presidencies of Kennedy and Johnson, the Vietnam War, and other historical events unfold from the perspective of an Alabama man.',
-        posterPath: '/arw2vcBveWOVZr6pxd9XTd1TdQa.jpg',
-        backdropPath: '/7c9UVPPiTPltouxRVY6N9uCj9fT.jpg',
-        voteAverage: 8.5,
-        voteCount: 25800,
-        releaseDate: '1994-06-23',
-        genreIds: [35, 18, 10749],
-        popularity: 167.8,
-        originalLanguage: 'en',
-        adult: false,
-      ),
-      Movie(
-        id: 7,
-        title: 'The Matrix',
-        overview:
-            'A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.',
-        posterPath: '/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg',
-        backdropPath: '/icmmSD4vTTDKOq2vvdulafOGw93.jpg',
-        voteAverage: 8.2,
-        voteCount: 23600,
-        releaseDate: '1999-03-30',
-        genreIds: [28, 878],
-        popularity: 195.4,
-        originalLanguage: 'en',
-        adult: false,
-      ),
-      Movie(
-        id: 8,
-        title: 'Interstellar',
-        overview:
-            'A team of explorers travel through a wormhole in space in an attempt to ensure humanity\'s survival.',
-        posterPath: '/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
-        backdropPath: '/xu9zaAevzQ5nnrsXN6JcahLnG4i.jpg',
-        voteAverage: 8.4,
-        voteCount: 31800,
-        releaseDate: '2014-11-05',
-        genreIds: [12, 18, 878],
-        popularity: 220.3,
-        originalLanguage: 'en',
-        adult: false,
-      ),
-    ];
+  Future<UserProfile> updatePseudo(String pseudo) async {
+    final payload = await _sendJson(
+      'PUT',
+      '/api/Users/me',
+      body: {'pseudo': pseudo.trim()},
+    );
+    final profile = UserProfile.fromJson(payload as Map<String, dynamic>);
+    _profile = profile;
+    notifyListeners();
+    return profile;
+  }
+
+  Future<void> addFavorite(Movie movie) async {
+    await _sendJson('POST', '/api/FavoriteMovies', body: _moviePayload(movie));
+    await Future.wait([refreshFavorites(), refreshWatchedMovies(), refreshWatchLaterMovies()]);
+  }
+
+  Future<void> removeFavorite(Movie movie) async {
+    await _send('DELETE', '/api/FavoriteMovies/${movie.id}');
+    _favorites = _favorites.where((fav) => fav.movie.id != movie.id).toList();
+    notifyListeners();
+  }
+
+  Future<void> addToWatchLater(Movie movie) async {
+    await _sendJson('POST', '/api/WatchLaterMovies', body: _moviePayload(movie));
+    await refreshWatchLaterMovies();
+  }
+
+  Future<void> removeFromWatchLater(Movie movie) async {
+    await _send('DELETE', '/api/WatchLaterMovies/${movie.id}');
+    _watchLaterMovies = _watchLaterMovies
+        .where((watchLater) => watchLater.movie.id != movie.id)
+        .toList();
+    notifyListeners();
+  }
+
+  Future<void> markWatched(
+    Movie movie, {
+    int? rating,
+  }) async {
+    await _sendJson('POST', '/api/WatchedMovies', body: {
+      ..._moviePayload(movie),
+      'rating': rating
+      }
+    );
+    await Future.wait([refreshWatchedMovies(), refreshWatchLaterMovies()]);
+  }
+
+  Future<void> removeWatchedMovie(Movie movie) async {
+    await _send('DELETE', '/api/WatchedMovies/${movie.id}');
+    _watchedMovies = _watchedMovies.where((watched) => watched.movie.id != movie.id).toList();
+    notifyListeners();
+    await Future.wait([refreshFavorites(), refreshWatchLaterMovies()]);
+  }
+
+  Future<void> createMovieList({
+    required String name,
+    required String description,
+  }) async {
+    await _sendJson(
+      'POST',
+      '/api/MovieLists',
+      body: {'name': name.trim(), 'description': description.trim()},
+    );
+    await refreshMovieLists();
+  }
+
+  Future<void> deleteMovieList(int id) async {
+    await _send('DELETE', '/api/MovieLists/$id');
+    _movieLists = _movieLists.where((list) => list.id != id).toList();
+    notifyListeners();
+  }
+
+  Future<void> addMovieToList(int listId, Movie movie) async {
+    await _sendJson(
+      'POST',
+      '/api/MovieLists/$listId/movies',
+      body: _moviePayload(movie),
+    );
+    await refreshMovieLists();
+  }
+
+  Future<void> removeMovieFromList(int listId, int itemId) async {
+    await _send('DELETE', '/api/MovieLists/$listId/movies/$itemId');
+    await refreshMovieLists();
+  }
+
+  bool isFavorite(Movie movie) {
+    return _favorites.any((favorite) => favorite.movie.id == movie.id);
+  }
+
+  bool isWatched(Movie movie) {
+    return _watchedMovies.any((watched) => watched.movie.id == movie.id);
+  }
+
+  bool isInWatchLater(Movie movie) {
+    return _watchLaterMovies.any(
+      (watchLater) => watchLater.movie.id == movie.id,
+    );
+  }
+
+  Future<void> refreshFavorites() async {
+    final payload = await _getJson('/api/FavoriteMovies');
+    _favorites = _parseJsonList(
+      payload,
+    ).map(FavoriteMovieEntry.fromJson).toList();
+    notifyListeners();
+  }
+
+  Future<void> refreshWatchedMovies() async {
+    final payload = await _getJson('/api/WatchedMovies');
+    _watchedMovies = _parseJsonList(
+      payload,
+    ).map(WatchedMovieEntry.fromJson).toList();
+    notifyListeners();
+  }
+
+  Future<void> refreshWatchLaterMovies() async {
+    final payload = await _getJson('/api/WatchLaterMovies');
+    _watchLaterMovies = _parseJsonList(
+      payload,
+    ).map(WatchLaterMovieEntry.fromJson).toList();
+    notifyListeners();
+  }
+
+  Future<void> refreshMovieLists() async {
+    final payload = await _getJson('/api/MovieLists');
+    _movieLists = _parseJsonList(payload).map(UserMovieList.fromJson).toList();
+    notifyListeners();
+  }
+
+  List<Movie> _parseMovieResults(dynamic payload) {
+    if (payload is Map<String, dynamic>) {
+      final results = payload['results'] as List<dynamic>? ?? const [];
+      return results
+          .whereType<Map<String, dynamic>>()
+          .map(Movie.fromJson)
+          .toList();
+    }
+    throw const FormatException('Expected movie search results payload.');
+  }
+
+  List<Map<String, dynamic>> _parseJsonList(dynamic payload) {
+    if (payload is List<dynamic>) {
+      return payload.whereType<Map<String, dynamic>>().toList();
+    }
+    throw const FormatException('Expected JSON array payload.');
+  }
+
+  Map<String, dynamic> _moviePayload(Movie movie) {
+    return {
+      'movieId': movie.id,
+    };
+  }
+
+  Future<dynamic> _getJson(String path) async {
+    final response = await _send('GET', path);
+    return _decodeJson(response.body);
+  }
+
+  Future<dynamic> _sendJson(
+    String method,
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final response = await _send(method, path, body: body);
+    if (response.body.trim().isEmpty) {
+      return null;
+    }
+    return _decodeJson(response.body);
+  }
+
+  Future<http.Response> _send(
+    String method,
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final token = await _loginService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw StateError('Missing access token.');
+    }
+
+    final uri = Uri.parse('$_baseUrl$path');
+    final request = http.Request(method, uri)
+      ..headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      });
+
+    if (body != null) {
+      request.headers['Content-Type'] = 'application/json';
+      request.body = jsonEncode(body);
+    }
+
+    final streamedResponse = await _client.send(request);
+    final response = await http.Response.fromStream(streamedResponse);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_extractErrorMessage(response));
+    }
+    return response;
+  }
+
+  dynamic _decodeJson(String body) {
+    return jsonDecode(body);
+  }
+
+  String _extractErrorMessage(http.Response response) {
+    if (response.body.trim().isEmpty) {
+      return 'HTTP ${response.statusCode}';
+    }
+
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final message =
+            decoded['message'] ?? decoded['error'] ?? decoded['title'];
+        if (message is String && message.isNotEmpty) {
+          return message;
+        }
+      }
+    } catch (_) {
+      return response.body;
+    }
+
+    return response.body;
   }
 }

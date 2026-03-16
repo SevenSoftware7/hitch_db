@@ -12,14 +12,12 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final MovieService _movieService = MovieService();
   final TextEditingController _searchController = TextEditingController();
   List<Movie> _searchResults = [];
   List<Function(Movie, bool)> _activeFilters = [];
 
   bool _isLoading = false;
   String _errorMessage = '';
-
 
   @override
   void dispose() {
@@ -29,27 +27,41 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildSearchResults() {
     if (_searchResults.isEmpty && _searchController.text.isNotEmpty) {
-      return const Center(
-        child: Text('No movies found'),
-      );
+      return const Center(child: Text('No movies found'));
     }
 
     return _searchResults
-    .applyFilters(_activeFilters)
-    .buildMovieGrid(
-      onRefresh: context.watch<MovieService>().getPopularMovies,
-    );
+        .applyFilters(_activeFilters)
+        .buildMovieGrid(
+          onRefresh: context.watch<MovieService>().getPopularMovies,
+        );
   }
 
   Future<void> _searchMovies(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _errorMessage = '';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
     try {
-      final results = await _movieService.searchMovies(query);
+      final results = await context.read<MovieService>().searchMovies(query);
       setState(() {
         _searchResults = results;
+        _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
+        _isLoading = false;
       });
     }
   }
@@ -60,13 +72,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading:
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
         title: TextField(
           controller: _searchController,
           autofocus: true,
@@ -88,45 +99,41 @@ class _SearchScreenState extends State<SearchScreen> {
               });
             },
           ),
-        ]
+        ],
       ),
       body: _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : _errorMessage.isNotEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 60,
-                      color: colorScheme.error,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error loading movies',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        _errorMessage,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage.isNotEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 60, color: colorScheme.error),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading movies',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      _errorMessage,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => _searchMovies(_searchController.text),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              )
-            : _buildSearchResults(),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => _searchMovies(_searchController.text),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          : _buildSearchResults(),
     );
   }
 }
