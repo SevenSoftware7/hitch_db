@@ -108,6 +108,30 @@ class AuthSession extends ChangeNotifier {
     return result;
   }
 
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await _loginService.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      if (!result) {
+        _errorMessage = 'Failed to update your password.';
+        notifyListeners();
+      }
+      return result;
+    } catch (e) {
+      _errorMessage = 'An error occurred while changing password: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
   void clearError() {
     if (_errorMessage == null) {
       return;

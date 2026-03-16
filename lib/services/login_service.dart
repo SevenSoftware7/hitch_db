@@ -82,6 +82,44 @@ class LoginService {
     return true;
   }
 
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final token = await getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('No access token found for password update.');
+    }
+
+    final uri = Uri.parse('$_baseUrl/api/Users/me/password');
+    http.Response response;
+    try {
+      response = await _client.put(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      );
+    } catch (e) {
+      throw Exception('Password update request to $uri failed: $e');
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final errorMessage = _extractErrorMessage(
+        response.body,
+        fallbackMessage: 'Password update failed.',
+      );
+      throw Exception(errorMessage);
+    }
+
+    return true;
+  }
+
   Future<LoginResult> _authenticate({
     required String path,
     required String email,

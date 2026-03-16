@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:hitch_db/app_config.dart';
 import 'package:hitch_db/services/auth_session.dart';
+import 'package:hitch_db/widgets/change_password_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,6 +13,21 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  Future<void> _showChangePasswordDialog() async {
+    final changed = await showDialog<bool>(
+      context: context,
+      builder: (_) => const ChangePasswordDialog(),
+    );
+
+    if (!mounted || changed != true) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Password updated.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -19,6 +35,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.lock_outline),
+              title: const Text('Change password'),
+              subtitle: const Text('Update the password for your account.'),
+              onTap: _showChangePasswordDialog,
+            ),
+          ),
           Card(
             child: ListTile(
               leading: const Icon(Icons.cloud_outlined),
