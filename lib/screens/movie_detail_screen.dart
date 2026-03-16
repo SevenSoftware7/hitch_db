@@ -371,6 +371,9 @@ class MovieDetailScreen extends StatelessWidget {
             ...movieService.movieLists.map(
               (list) => ListTile(
                 leading: const Icon(Icons.list_alt_rounded),
+                trailing: movieService.isInMovieList(movie, list.id)
+                  ? Icon(Icons.check)
+                  : null,
                 title: Text(list.name),
                 subtitle: Text('${list.items.length} movies'),
                 onTap: () => Navigator.of(context).pop(list.id),
@@ -382,6 +385,18 @@ class MovieDetailScreen extends StatelessWidget {
     );
 
     if (selectedListId == null) {
+      return;
+    }
+
+    if (movieService.isInMovieList(movie, selectedListId)) {
+      try {
+        await movieService.removeMovieFromList(selectedListId, movie);
+        messenger.showSnackBar(
+          SnackBar(content: Text('${movie.title} removed from your list.')),
+        );
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('$e')));
+      }
       return;
     }
 

@@ -193,11 +193,11 @@ class ProfileScreen extends StatelessWidget {
                             list: list,
                             onDelete: () =>
                                 _deleteMovieList(context, movieService, list),
-                            onRemoveMovie: (itemId) => _removeMovieFromList(
+                            onRemoveMovie: (movie) => _removeMovieFromList(
                               context,
                               movieService,
                               list.id,
-                              itemId,
+                              movie,
                             ),
                             onOpenMovie: (movie) => MovieDetailScreen.pushNavigation(
                               context,
@@ -377,11 +377,11 @@ class ProfileScreen extends StatelessWidget {
     BuildContext context,
     MovieService movieService,
     int listId,
-    int itemId,
+    Movie movie,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await movieService.removeMovieFromList(listId, itemId);
+      await movieService.removeMovieFromList(listId, movie);
       messenger.showSnackBar(
         const SnackBar(content: Text('Movie removed from list.')),
       );
@@ -630,7 +630,7 @@ class _MovieListCard extends StatelessWidget {
 
   final UserMovieList list;
   final VoidCallback onDelete;
-  final ValueChanged<int> onRemoveMovie;
+  final ValueChanged<Movie> onRemoveMovie;
   final ValueChanged<Movie>? onOpenMovie;
 
   @override
@@ -691,7 +691,7 @@ class _MovieListCard extends StatelessWidget {
                             ? () => onOpenMovie!(item.movie)
                             : null,
                         trailing: IconButton(
-                          onPressed: () => onRemoveMovie(item.id),
+                          onPressed: () => onRemoveMovie(item.movie),
                           icon: const Icon(Icons.remove_circle_outline),
                         ),
                       ),

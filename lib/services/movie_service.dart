@@ -240,16 +240,12 @@ class MovieService extends ChangeNotifier {
   }
 
   Future<void> addMovieToList(int listId, Movie movie) async {
-    await _sendJson(
-      'POST',
-      '/api/MovieLists/$listId/movies',
-      body: _moviePayload(movie),
-    );
+    await _sendJson('POST', '/api/MovieLists/$listId/movies', body: _moviePayload(movie));
     await refreshMovieLists();
   }
 
-  Future<void> removeMovieFromList(int listId, int itemId) async {
-    await _send('DELETE', '/api/MovieLists/$listId/movies/$itemId');
+  Future<void> removeMovieFromList(int listId, Movie itemId) async {
+    await _send('DELETE', '/api/MovieLists/$listId/movies/${itemId.id}');
     await refreshMovieLists();
   }
 
@@ -265,6 +261,11 @@ class MovieService extends ChangeNotifier {
     return _watchLaterMovies.any(
       (watchLater) => watchLater.movie.id == movie.id,
     );
+  }
+
+  bool isInMovieList(Movie movie, int listId) {
+    final list = _movieLists.firstWhere((l) => l.id == listId, orElse: () => UserMovieList(id: 0, name: '', description: '', createdAt: null, items: []));
+    return list.items.any((item) => item.movie.id == movie.id);
   }
 
   Future<void> refreshFavorites() async {
